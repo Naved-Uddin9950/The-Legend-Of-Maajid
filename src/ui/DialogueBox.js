@@ -1,11 +1,17 @@
 /**
  * DialogueBox.js
  * Cinematic Visual Novel dialogue presentation.
- * Features typewriter text, speaker nameplate, character portraits, choices, and keyboard/mouse advancement.
+ * Supports:
+ * - English & Authentic Hinglish language switching
+ * - Adjustable Typewriter Text Speed (slow, medium, fast, instant)
+ * - Respects Screen Shake & Visual Effects settings
+ * - Glassmorphism UI panel and vector choice buttons
+ * - Speaker nameplate, character portraits, and advancement
  */
 
 import Phaser from 'phaser';
 import { AudioManager } from '../systems/AudioManager.js';
+import { SaveManager } from '../systems/SaveManager.js';
 
 export class DialogueBox {
   constructor(scene) {
@@ -46,7 +52,7 @@ export class DialogueBox {
     this.rightPortrait.setDisplaySize(280, 360);
     this.container.add(this.rightPortrait);
 
-    // Main Dialogue Box Panel (1060 x 175)
+    // Main Dialogue Box Panel (1060 x 180)
     this.boxGraphic = this.scene.add.graphics();
     // Glassmorphism deep midnight slate fill
     this.boxGraphic.fillStyle(0x080c18, 0.94);
@@ -68,12 +74,12 @@ export class DialogueBox {
     this.nameplateContainer = this.scene.add.container(140, 468);
     this.nameplateBg = this.scene.add.graphics();
     this.nameplateBg.fillStyle(0x0f172a, 0.97);
-    this.nameplateBg.fillRoundedRect(0, 0, 200, 36, 6);
+    this.nameplateBg.fillRoundedRect(0, 0, 220, 36, 6);
     this.nameplateBg.lineStyle(1.5, 0xf59e0b, 0.95);
-    this.nameplateBg.strokeRoundedRect(0, 0, 200, 36, 6);
+    this.nameplateBg.strokeRoundedRect(0, 0, 220, 36, 6);
     this.nameplateContainer.add(this.nameplateBg);
 
-    this.speakerText = this.scene.add.text(100, 18, 'Maajid', {
+    this.speakerText = this.scene.add.text(110, 18, 'Maajid', {
       fontFamily: "'Cinzel', serif",
       fontSize: '15px',
       color: '#f59e0b',
@@ -130,8 +136,15 @@ export class DialogueBox {
     this.waitingForChoice = false;
     this.container.setVisible(true);
 
-    // Speaker & portraits
-    const speaker = dialogue.speaker || '';
+    const settings = SaveManager.getInstance().loadSettings();
+    const isHinglish = (settings.language === 'hinglish');
+
+    // Determine speaker name based on language
+    let speaker = dialogue.speaker || '';
+    if (isHinglish && dialogue.speaker_hinglish !== undefined) {
+      speaker = dialogue.speaker_hinglish;
+    }
+
     this.speakerText.setText(speaker);
     this.nameplateContainer.setVisible(speaker !== '' && speaker !== 'Narrator');
 
@@ -151,43 +164,62 @@ export class DialogueBox {
         this.leftPortrait.setTint(0x71717a);
       }
     } else {
-      if (speaker === 'Narrator') {
+      if (!dialogue.portrait || speaker === 'Narrator' || speaker === '') {
         this.leftPortrait.setVisible(false);
         this.rightPortrait.setVisible(false);
       }
     }
 
-    // SFX & screen effects
+    // SFX
     if (dialogue.sfx) {
       AudioManager.getInstance().playSFX(dialogue.sfx);
     }
-    if (dialogue.shake) {
+
+    // Screen shake (respects settings)
+    if (dialogue.shake && settings.screenShake !== false) {
       this.scene.cameras.main.shake(300, 0.015);
     }
-    if (dialogue.action === 'screen_flash') {
+
+    // Visual effects / flash (respects settings)
+    if (dialogue.action === 'screen_flash' && settings.visualEffects !== false) {
       this.scene.cameras.main.flash(200, 255, 255, 255);
     }
 
-    // Typewriter
-    this.fullText = dialogue.text;
+    // Dialogue text based on language
+    this.fullText = (isHinglish && dialogue.text_hinglish) ? dialogue.text_hinglish : (dialogue.text || '');
     this.dialogueText.setText('');
     this.typeIndex = 0;
     this.isTyping = true;
     this.continueIndicator.setVisible(false);
     this.clearChoices();
 
-    if (this.typeTimer) clearInterval(this.typeTimer);
-    this.typeTimer = setInterval(() => {
-      if (this.typeIndex < this.fullText.length) {
-        this.dialogueText.setText(this.fullText.substring(0, this.typeIndex + 1));
-        if (this.typeIndex % 3 === 0) {
-          AudioManager.getInstance().playSFX('typewriter');
+    if (this.typeTimer) {
+      clearInterval(this.typeTimer);
+      this.typeTimer = null;
+    }
+
+    // Calculate typewriter speed from settings
+    let charInterval = 18; // Default medium
+    if (settings.textSpeed === 'slow') charInterval = 38;
+    else if (settings.textSpeed === 'fast') charInterval = 7;
+    else if (settings.textSpeed === 'instant') charInterval = 0;
+
+    if (charInterval === 0) {
+      // Instant display
+      this.finishTyping();
+    } else {
+      this.typeTimer = setInterval(() => {
+        if (this.typeIndex < this.fullText.length) {
+          this.dialogueText.setText(this.fullText.substring(0, this.typeIndex + 1));
+          if (this.typeIndex % 3 === 0) {
+            AudioManager.getInstance().playSFX('typewriter');
+          }
+          this.typeIndex++;
+        } else {
+          this.finishTyping();
         }
-        this.typeIndex++;
-      } else {
-        this.finishTyping();
-      }
-    }, 20);
+      }, charInterval);
+    }
   }
 
   finishTyping() {
@@ -199,7 +231,7 @@ export class DialogueBox {
     this.isTyping = false;
 
     // Check if dialogue has choices
-    if (this.currentDialogue.choices && this.currentDialogue.choices.length > 0) {
+    if (this.currentDialogue && this.currentDialogue.choices && this.currentDialogue.choices.length > 0) {
       this.renderChoices(this.currentDialogue.choices);
     } else {
       this.continueIndicator.setVisible(true);
@@ -226,14 +258,22 @@ export class DialogueBox {
     this.clearChoices();
     this.continueIndicator.setVisible(false);
 
-    choices.forEach((choice, idx) => {
-      const choiceBtn = this.scene.add.container(0, idx * 56);
+    const settings = SaveManager.getInstance().loadSettings();
+    const isHinglish = (settings.language === 'hinglish');
 
-      const btnBg = this.scene.add.image(0, 0, 'ui_choice_btn');
-      btnBg.setDisplaySize(540, 46);
+    choices.forEach((choice, idx) => {
+      const choiceBtn = this.scene.add.container(0, idx * 54);
+
+      // Sleek vector glassmorphism background
+      const btnBg = this.scene.add.graphics();
+      btnBg.fillStyle(0x0f172a, 0.95);
+      btnBg.fillRoundedRect(-270, -22, 540, 44, 8);
+      btnBg.lineStyle(1.5, 0xd97706, 0.9);
+      btnBg.strokeRoundedRect(-270, -22, 540, 44, 8);
       choiceBtn.add(btnBg);
 
-      const btnTxt = this.scene.add.text(0, 0, choice.text, {
+      const choiceLabel = (isHinglish && choice.text_hinglish) ? choice.text_hinglish : choice.text;
+      const btnTxt = this.scene.add.text(0, 0, choiceLabel, {
         fontFamily: "'Plus Jakarta Sans', sans-serif",
         fontSize: '15px',
         color: '#f8fafc',
@@ -241,21 +281,32 @@ export class DialogueBox {
       }).setOrigin(0.5);
       choiceBtn.add(btnTxt);
 
-      btnBg.setInteractive({ useHandCursor: true });
-      btnBg.on('pointerover', () => {
+      const hitZone = this.scene.add.zone(0, 0, 540, 44).setInteractive({ useHandCursor: true });
+      hitZone.on('pointerover', () => {
         AudioManager.getInstance().playSFX('hover');
-        btnTxt.setColor('#f59e0b');
+        btnBg.clear();
+        btnBg.fillStyle(0x92400e, 0.95);
+        btnBg.fillRoundedRect(-270, -22, 540, 44, 8);
+        btnBg.lineStyle(2, 0xf59e0b, 1);
+        btnBg.strokeRoundedRect(-270, -22, 540, 44, 8);
+        btnTxt.setColor('#ffffff');
       });
-      btnBg.on('pointerout', () => {
+      hitZone.on('pointerout', () => {
+        btnBg.clear();
+        btnBg.fillStyle(0x0f172a, 0.95);
+        btnBg.fillRoundedRect(-270, -22, 540, 44, 8);
+        btnBg.lineStyle(1.5, 0xd97706, 0.9);
+        btnBg.strokeRoundedRect(-270, -22, 540, 44, 8);
         btnTxt.setColor('#f8fafc');
       });
-      btnBg.on('pointerdown', () => {
+      hitZone.on('pointerdown', () => {
         AudioManager.getInstance().playSFX('click');
         this.waitingForChoice = false;
         this.clearChoices();
         if (choice.callback) choice.callback();
         this.advance();
       });
+      choiceBtn.add(hitZone);
 
       this.choicesContainer.add(choiceBtn);
     });

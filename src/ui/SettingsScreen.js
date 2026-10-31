@@ -1,7 +1,13 @@
 /**
  * SettingsScreen.js
- * Comprehensive settings menu supporting Audio sliders, Text speed, Fullscreen,
- * Keybinds overview, Screen Shake, and local persistence.
+ * In-game pause menu settings panel.
+ * Supports:
+ * - Master, Music, SFX, Dialogue volume sliders with [-] and [+] step buttons
+ * - Screen Shake Effects & Cinematic VFX toggles
+ * - Fullscreen toggle
+ * - Language selector: [ English ] / [ Hinglish ]
+ * - Dialogue Speed selector: [ Slow ] / [ Normal ] / [ Fast ] / [ Instant ]
+ * - Keyboard controls quick reference
  */
 
 import { SaveManager } from '../systems/SaveManager.js';
@@ -53,16 +59,18 @@ export class SettingsScreen {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', () => {
       SaveManager.getInstance().saveSettings(this.settings);
+      AudioManager.getInstance().applySettings(this.settings);
       UIManager.getInstance().closeCurrentModal();
     });
     this.container.add(closeBtn);
 
     // Settings Content Container
-    this.content = this.scene.add.container(200, 135);
+    this.content = this.scene.add.container(200, 130);
     this.container.add(this.content);
   }
 
   show() {
+    this.settings = SaveManager.getInstance().loadSettings();
     this.container.setVisible(true);
     this.refresh();
   }
@@ -78,7 +86,7 @@ export class SettingsScreen {
     // ==========================================
     // AUDIO CONTROLS (Left side: 0..420)
     // ==========================================
-    const audioHeader = this.scene.add.text(0, 10, 'AUDIO LEVELS', {
+    const audioHeader = this.scene.add.text(0, 5, 'AUDIO LEVELS', {
       fontFamily: "'Cinzel', serif",
       fontSize: '15px',
       color: '#38bdf8',
@@ -93,9 +101,9 @@ export class SettingsScreen {
       { key: 'dialogueVolume', label: 'Dialogue Volume', channel: 'dialogue' }
     ];
 
-    let aY = 45;
+    let aY = 35;
     audioSliders.forEach(slider => {
-      const currentVal = this.settings[slider.key];
+      const currentVal = this.settings[slider.key] ?? 80;
 
       const lbl = this.scene.add.text(0, aY, slider.label, {
         fontFamily: "'Plus Jakarta Sans', sans-serif",
@@ -132,7 +140,7 @@ export class SettingsScreen {
       minusBtn.setSize(32, 26);
       minusBtn.setInteractive({ useHandCursor: true });
       minusBtn.on('pointerdown', () => {
-        const newVal = Math.max(0, this.settings[slider.key] - 5);
+        const newVal = Math.max(0, (this.settings[slider.key] ?? 80) - 5);
         this.settings[slider.key] = newVal;
         audio.setVolume(slider.channel, newVal / 100);
         audio.playSFX('click');
@@ -164,16 +172,21 @@ export class SettingsScreen {
       this.content.add(thumb);
 
       // Slider Hit & Drag Area
-      const trackWorldStartX = 200 + trackX; // 200 container offset + 44 track start = 244
+      const trackWorldStartX = 200 + trackX; // 244
       const hit = this.scene.add.zone(trackX + trackW / 2, aY + 31, trackW, 28).setInteractive({ useHandCursor: true });
-      hit.on('pointerdown', (pointer) => {
+
+      const updateFromPointer = (pointer) => {
         const ratio = Math.max(0, Math.min(1, (pointer.x - trackWorldStartX) / trackW));
         const val = Math.round(ratio * 100);
         this.settings[slider.key] = val;
         audio.setVolume(slider.channel, val / 100);
-        audio.playSFX('click');
         SaveManager.getInstance().saveSettings(this.settings);
         this.refresh();
+      };
+
+      hit.on('pointerdown', (pointer) => {
+        audio.playSFX('click');
+        updateFromPointer(pointer);
       });
       this.content.add(hit);
 
@@ -197,7 +210,7 @@ export class SettingsScreen {
       plusBtn.setSize(32, 26);
       plusBtn.setInteractive({ useHandCursor: true });
       plusBtn.on('pointerdown', () => {
-        const newVal = Math.min(100, this.settings[slider.key] + 5);
+        const newVal = Math.min(100, (this.settings[slider.key] ?? 80) + 5);
         this.settings[slider.key] = newVal;
         audio.setVolume(slider.channel, newVal / 100);
         audio.playSFX('click');
@@ -206,13 +219,13 @@ export class SettingsScreen {
       });
       this.content.add(plusBtn);
 
-      aY += 58;
+      aY += 56;
     });
 
     // ==========================================
     // GAMEPLAY & DISPLAY (Right side: 460..880)
     // ==========================================
-    const gameHeader = this.scene.add.text(460, 10, 'GAMEPLAY & DISPLAY', {
+    const gameHeader = this.scene.add.text(460, 5, 'GAMEPLAY & DISPLAY', {
       fontFamily: "'Cinzel', serif",
       fontSize: '15px',
       color: '#38bdf8',
@@ -220,59 +233,62 @@ export class SettingsScreen {
     });
     this.content.add(gameHeader);
 
-    // Screen Shake Toggle
-    const shakeBtn = this.createToggle(460, 50, 'Screen Shake Effects', this.settings.screenShake, (val) => {
+    // 1. Screen Shake Toggle
+    const shakeBtn = this.createToggle(460, 38, 'Screen Shake Effects', this.settings.screenShake, (val) => {
       this.settings.screenShake = val;
       SaveManager.getInstance().saveSettings(this.settings);
       this.refresh();
     });
     this.content.add(shakeBtn);
 
-    // Visual Effects Toggle
-    const vfxBtn = this.createToggle(460, 110, 'Cinematic Lighting & VFX', this.settings.visualEffects, (val) => {
+    // 2. Visual Effects Toggle
+    const vfxBtn = this.createToggle(460, 86, 'Cinematic Lighting & VFX', this.settings.visualEffects, (val) => {
       this.settings.visualEffects = val;
       SaveManager.getInstance().saveSettings(this.settings);
       this.refresh();
     });
     this.content.add(vfxBtn);
 
-    // Fullscreen Toggle
+    // 3. Fullscreen Toggle
     const isFs = !!(document.fullscreenElement || this.scene.scale.isFullscreen);
-    const fsBtn = this.createToggle(460, 170, 'Fullscreen Mode', isFs, async () => {
+    const fsBtn = this.createToggle(460, 134, 'Fullscreen Mode', isFs, async (val) => {
       try {
-        if (!document.fullscreenElement && !this.scene.scale.isFullscreen) {
-          if (document.documentElement.requestFullscreen) {
-            await document.documentElement.requestFullscreen();
-          } else if (this.scene.scale.startFullscreen) {
+        if (val) {
+          if (this.scene.scale.startFullscreen) {
             this.scene.scale.startFullscreen();
+          } else if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
           }
         } else {
-          if (document.exitFullscreen) {
-            await document.exitFullscreen();
-          } else if (this.scene.scale.stopFullscreen) {
+          if (this.scene.scale.stopFullscreen) {
             this.scene.scale.stopFullscreen();
+          } else if (document.exitFullscreen) {
+            await document.exitFullscreen();
           }
         }
       } catch (err) {
-        console.warn('Fullscreen request:', err);
+        console.warn('Fullscreen toggle request:', err);
       }
+      this.settings.fullscreen = val;
+      SaveManager.getInstance().saveSettings(this.settings);
       setTimeout(() => {
         if (this.container.visible) this.refresh();
-      }, 150);
+      }, 100);
     });
     this.content.add(fsBtn);
 
-    // Language Toggle (English / Hinglish-Ready)
-    const langBtn = this.createToggle(460, 230, `Language: ${this.settings.language === 'en' ? 'English' : 'Hinglish'}`, true, () => {
-      this.settings.language = this.settings.language === 'en' ? 'hinglish' : 'en';
-      this.refresh();
-    });
-    this.content.add(langBtn);
+    // 4. Language Selector (English / Hinglish)
+    const langSelector = this.createLanguageSelector(460, 182);
+    this.content.add(langSelector);
+
+    // 5. Dialogue Speed Selector (Slow / Normal / Fast / Instant)
+    const speedSelector = this.createTextSpeedSelector(460, 230);
+    this.content.add(speedSelector);
 
     // ==========================================
-    // KEYBINDINGS OVERVIEW (Bottom: y: 320..460)
+    // KEYBINDINGS OVERVIEW (Bottom: y: 290..400)
     // ==========================================
-    const keysHeader = this.scene.add.text(0, 310, 'KEYBOARD CONTROLS', {
+    const keysHeader = this.scene.add.text(0, 290, 'KEYBOARD CONTROLS', {
       fontFamily: "'Cinzel', serif",
       fontSize: '15px',
       color: '#38bdf8',
@@ -294,7 +310,7 @@ export class SettingsScreen {
     binds.forEach((bind, idx) => {
       const col = idx % 2;
       const row = Math.floor(idx / 2);
-      const bText = this.scene.add.text(col * 460, 345 + row * 26, `•  ${bind}`, {
+      const bText = this.scene.add.text(col * 460, 320 + row * 24, `•  ${bind}`, {
         fontFamily: "'Plus Jakarta Sans', sans-serif",
         fontSize: '12px',
         color: '#cbd5e1'
@@ -317,7 +333,9 @@ export class SettingsScreen {
 
     const bg = this.scene.add.graphics();
     bg.fillStyle(currentValue ? 0x15803d : 0x334155, 1);
-    bg.fillRoundedRect(-40, -14, 80, 28, 14);
+    bg.fillRoundedRect(-36, -14, 72, 28, 6);
+    bg.lineStyle(1.5, currentValue ? 0x22c55e : 0x475569, 0.9);
+    bg.strokeRoundedRect(-36, -14, 72, 28, 6);
     btn.add(bg);
 
     const txt = this.scene.add.text(0, 0, currentValue ? 'ON' : 'OFF', {
@@ -328,7 +346,7 @@ export class SettingsScreen {
     }).setOrigin(0.5);
     btn.add(txt);
 
-    btn.setSize(80, 28);
+    btn.setSize(72, 28);
     btn.setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
       AudioManager.getInstance().playSFX('click');
@@ -336,6 +354,129 @@ export class SettingsScreen {
     });
 
     group.add(btn);
+    return group;
+  }
+
+  createLanguageSelector(x, y) {
+    const group = this.scene.add.container(x, y);
+
+    const lbl = this.scene.add.text(0, 6, 'Language / Bhasha', {
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
+      fontSize: '13px',
+      color: '#f8fafc'
+    });
+    group.add(lbl);
+
+    const curLang = this.settings.language || 'en';
+
+    // English button
+    const enBtn = this.scene.add.container(260, 16);
+    const enActive = (curLang === 'en');
+    const enBg = this.scene.add.graphics();
+    enBg.fillStyle(enActive ? 0x15803d : 0x1e293b, 1);
+    enBg.fillRoundedRect(-44, -14, 88, 28, 6);
+    enBg.lineStyle(1.5, enActive ? 0x4ade80 : 0x475569, 0.9);
+    enBg.strokeRoundedRect(-44, -14, 88, 28, 6);
+    enBtn.add(enBg);
+
+    const enTxt = this.scene.add.text(0, 0, enActive ? '✓ English' : 'English', {
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
+      fontSize: '11px',
+      color: enActive ? '#ffffff' : '#94a3b8',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    enBtn.add(enTxt);
+
+    enBtn.setSize(88, 28);
+    enBtn.setInteractive({ useHandCursor: true });
+    enBtn.on('pointerdown', () => {
+      AudioManager.getInstance().playSFX('click');
+      this.settings.language = 'en';
+      SaveManager.getInstance().saveSettings(this.settings);
+      this.refresh();
+    });
+    group.add(enBtn);
+
+    // Hinglish button
+    const hiBtn = this.scene.add.container(360, 16);
+    const hiActive = (curLang === 'hinglish');
+    const hiBg = this.scene.add.graphics();
+    hiBg.fillStyle(hiActive ? 0xb45309 : 0x1e293b, 1);
+    hiBg.fillRoundedRect(-44, -14, 88, 28, 6);
+    hiBg.lineStyle(1.5, hiActive ? 0xf59e0b : 0x475569, 0.9);
+    hiBg.strokeRoundedRect(-44, -14, 88, 28, 6);
+    hiBtn.add(hiBg);
+
+    const hiTxt = this.scene.add.text(0, 0, hiActive ? '✓ Hinglish' : 'Hinglish', {
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
+      fontSize: '11px',
+      color: hiActive ? '#ffffff' : '#94a3b8',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    hiBtn.add(hiTxt);
+
+    hiBtn.setSize(88, 28);
+    hiBtn.setInteractive({ useHandCursor: true });
+    hiBtn.on('pointerdown', () => {
+      AudioManager.getInstance().playSFX('click');
+      this.settings.language = 'hinglish';
+      SaveManager.getInstance().saveSettings(this.settings);
+      this.refresh();
+    });
+    group.add(hiBtn);
+
+    return group;
+  }
+
+  createTextSpeedSelector(x, y) {
+    const group = this.scene.add.container(x, y);
+
+    const lbl = this.scene.add.text(0, 6, 'Dialogue Speed', {
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
+      fontSize: '13px',
+      color: '#f8fafc'
+    });
+    group.add(lbl);
+
+    const curSpeed = this.settings.textSpeed || 'medium';
+    const speeds = [
+      { key: 'slow', label: 'Slow' },
+      { key: 'medium', label: 'Normal' },
+      { key: 'fast', label: 'Fast' },
+      { key: 'instant', label: 'Instant' }
+    ];
+
+    speeds.forEach((spd, idx) => {
+      const btnX = 180 + idx * 58;
+      const btn = this.scene.add.container(btnX, 16);
+      const isActive = (curSpeed === spd.key);
+
+      const bg = this.scene.add.graphics();
+      bg.fillStyle(isActive ? 0x0284c7 : 0x1e293b, 1);
+      bg.fillRoundedRect(-26, -14, 52, 28, 4);
+      bg.lineStyle(1.5, isActive ? 0x38bdf8 : 0x475569, 0.9);
+      bg.strokeRoundedRect(-26, -14, 52, 28, 4);
+      btn.add(bg);
+
+      const txt = this.scene.add.text(0, 0, spd.label, {
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
+        fontSize: '10px',
+        color: isActive ? '#ffffff' : '#94a3b8',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+      btn.add(txt);
+
+      btn.setSize(52, 28);
+      btn.setInteractive({ useHandCursor: true });
+      btn.on('pointerdown', () => {
+        AudioManager.getInstance().playSFX('click');
+        this.settings.textSpeed = spd.key;
+        SaveManager.getInstance().saveSettings(this.settings);
+        this.refresh();
+      });
+      group.add(btn);
+    });
+
     return group;
   }
 }

@@ -151,21 +151,27 @@ export class SaveManager {
   // SETTINGS PERSISTENCE
   // ==========================================
   saveSettings(settings) {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch (e) {}
+    this._cachedSettings = { ...settings };
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      } catch (e) {}
+    }
   }
 
   loadSettings() {
-    if (typeof window === 'undefined' || !window.localStorage) return this.getDefaultSettings();
-    try {
-      const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return this.getDefaultSettings();
-      return { ...this.getDefaultSettings(), ...JSON.parse(raw) };
-    } catch (e) {
-      return this.getDefaultSettings();
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if (raw) {
+          return { ...this.getDefaultSettings(), ...JSON.parse(raw) };
+        }
+      } catch (e) {}
     }
+    if (this._cachedSettings) {
+      return { ...this.getDefaultSettings(), ...this._cachedSettings };
+    }
+    return this.getDefaultSettings();
   }
 
   getDefaultSettings() {

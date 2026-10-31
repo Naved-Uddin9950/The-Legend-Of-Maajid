@@ -296,28 +296,38 @@ export class NeighborhoodScene extends Phaser.Scene {
     const dialogues = [
       {
         speaker: 'Basharat Bhai',
+        speaker_hinglish: 'Basharat Bhai',
         portrait: 'portrait_basharat_age_24',
-        text: 'Maajid! Good to see you on your feet early. How are the new prescription glasses feeling?'
+        text: 'Maajid! Good to see you on your feet early. How are the new prescription glasses feeling?',
+        text_hinglish: 'Maajid! Subah-subah dekh kar achcha laga. Naye glasses (chashma) kaisa lag raha hai?'
       },
       {
         speaker: 'Maajid',
+        speaker_hinglish: 'Maajid',
         portrait: 'portrait_maajid_age_21',
-        text: 'Much better, Basharat Bhai. The blurry edges are gone. I can see the sea horizon clearly from across the street.'
+        text: 'Much better, Basharat Bhai. The blurry edges are gone. I can see the sea horizon clearly from across the street.',
+        text_hinglish: 'Bahut behtar, Basharat Bhai. Dhundlaapan bilkul gayab ho gaya hai. Ab sadak ke us paar se bhi samundar saaf dikhta hai.'
       },
       {
         speaker: 'Basharat Bhai',
+        speaker_hinglish: 'Basharat Bhai',
         portrait: 'portrait_basharat_age_24',
-        text: 'That’s wonderful. A clear vision for a clear future. Never forget how far you’ve come from those reckless childhood days.'
+        text: 'That’s wonderful. A clear vision for a clear future. Never forget how far you’ve come from those reckless childhood days.',
+        text_hinglish: 'Bahut khoob. Saaf nazar, ek roshan mustaqbil ke liye. Kabhi mat bhoolna ki tum bachpan ke us daur se nikal kar kitni door tak aaye ho.'
       },
       {
         speaker: 'Maajid',
+        speaker_hinglish: 'Maajid',
         portrait: 'portrait_maajid_age_21',
-        text: 'Only because you showed me that true strength lies in patience and education, Basharat Bhai.'
+        text: 'Only because you showed me that true strength lies in patience and education, Basharat Bhai.',
+        text_hinglish: 'Sirf aapki wajah se, Basharat Bhai. Kyunki aapne mujhe sikhaya ki asli taqat sabr aur taleem me hoti hai.'
       },
       {
         speaker: 'Basharat Bhai',
+        speaker_hinglish: 'Basharat Bhai',
         portrait: 'portrait_basharat_age_24',
-        text: 'You did the hard work yourself, Maajid. Take a stroll down the street, say salam to Chacha Iqbal, and see if the morning catch has arrived at the market.'
+        text: 'You did the hard work yourself, Maajid. Take a stroll down the street, say salam to Chacha Iqbal, and see if the morning catch has arrived at the market.',
+        text_hinglish: 'Mehnat tumhari apni thi, Maajid. Sadak par ek chakkar lagao, Chacha Iqbal ko salam karo, aur dekho bazaar me taazi machhli aayi ya nahi.'
       }
     ];
 
@@ -341,18 +351,24 @@ export class NeighborhoodScene extends Phaser.Scene {
     const dialogues = [
       {
         speaker: 'Chacha Iqbal',
+        speaker_hinglish: 'Chacha Iqbal',
         portrait: 'portrait_chacha_iqbal',
-        text: 'Jeete raho, Maajid beta! May Allah grant you health and endless peace.'
+        text: 'Jeete raho, Maajid beta! May Allah grant you health and endless peace.',
+        text_hinglish: 'Jeete raho, Maajid beta! Khuda tumhe tandurusti aur be-inteha sukoon ata kare.'
       },
       {
         speaker: 'Maajid',
+        speaker_hinglish: 'Maajid',
         portrait: 'portrait_maajid_age_21',
-        text: 'Salam, Chacha Iqbal. How is your health today?'
+        text: 'Salam, Chacha Iqbal. How is your health today?',
+        text_hinglish: 'Salam Chacha Iqbal. Aaj aapki tabiyat kaisi hai?'
       },
       {
         speaker: 'Chacha Iqbal',
+        speaker_hinglish: 'Chacha Iqbal',
         portrait: 'portrait_chacha_iqbal',
-        text: 'Alhamdulillah, every sunrise in Machhli Mohalla is a gift. Seeing young men like you and Basharat stand with dignity fills my heart with joy.'
+        text: 'Alhamdulillah, every sunrise in Machhli Mohalla is a gift. Seeing young men like you and Basharat stand with dignity fills my heart with joy.',
+        text_hinglish: 'Alhamdulillah beta, Machhli Mohalla me har naya din ek rehmat hai. Tum aur Basharat jaise ba-saleeqa nojawano ko dekh kar dil khush ho jata hai.'
       }
     ];
 
@@ -375,13 +391,17 @@ export class NeighborhoodScene extends Phaser.Scene {
     const dialogues = [
       {
         speaker: 'Narrator',
+        speaker_hinglish: '',
         portrait: null,
-        text: 'Fresh silver pomfret, kingfish, and prawns are neatly displayed over beds of crushed ice. The morning market bustle is in full swing.'
+        text: 'Fresh silver pomfret, kingfish, and prawns are neatly displayed over beds of crushed ice. The morning market bustle is in full swing.',
+        text_hinglish: 'Baraf ke dher par taazi pomfret, surmai aur jhinga machhli saji hui hai. Subah-subah machhli bazaar ki rounaq apne urooj par hai.'
       },
       {
         speaker: 'Maajid',
+        speaker_hinglish: 'Maajid',
         portrait: 'portrait_maajid_age_21',
-        text: 'The fishermen arrived early today. The mohalla will eat well tonight.'
+        text: 'The fishermen arrived early today. The mohalla will eat well tonight.',
+        text_hinglish: 'Machhuare aaj badi subah hi aa gaye the. Aaj mohalle me sabke ghar taazi machhli banegi.'
       }
     ];
 

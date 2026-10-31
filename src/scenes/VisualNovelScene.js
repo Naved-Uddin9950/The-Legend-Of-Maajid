@@ -8,6 +8,7 @@ import Phaser from 'phaser';
 import { StoryManager } from '../systems/StoryManager.js';
 import { StatisticsManager } from '../systems/StatisticsManager.js';
 import { AudioManager } from '../systems/AudioManager.js';
+import { SaveManager } from '../systems/SaveManager.js';
 import { DialogueBox } from '../ui/DialogueBox.js';
 import { HUD } from '../ui/HUD.js';
 import { NotificationSystem } from '../ui/NotificationSystem.js';
@@ -30,20 +31,24 @@ export class VisualNovelScene extends Phaser.Scene {
     this.chapterData = story.getCurrentChapter();
     StatisticsManager.getInstance().syncWithAge(this.chapterData.age);
 
+    const settings = SaveManager.getInstance().loadSettings();
+
     // 1. Fullscreen Chapter Background
     this.bg = this.add.image(width / 2, height / 2, this.chapterData.bg);
     this.bg.setDisplaySize(width, height);
 
-    // Camera pan animation for cinematic effect
-    this.tweens.add({
-      targets: this.bg,
-      scaleX: this.bg.scaleX * 1.04,
-      scaleY: this.bg.scaleY * 1.04,
-      duration: 15000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
+    // Camera pan animation for cinematic effect (if visualEffects enabled)
+    if (settings.visualEffects !== false) {
+      this.tweens.add({
+        targets: this.bg,
+        scaleX: this.bg.scaleX * 1.04,
+        scaleY: this.bg.scaleY * 1.04,
+        duration: 15000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    }
 
     // 2. Chapter Title Splash Card
     this.showChapterIntroCard();
@@ -71,26 +76,37 @@ export class VisualNovelScene extends Phaser.Scene {
   }
 
   showChapterIntroCard() {
+    const settings = SaveManager.getInstance().loadSettings();
+    const isHinglish = (settings.language === 'hinglish');
+
     const card = this.add.container(640, 360);
     card.setDepth(500);
 
     const bg = this.add.graphics();
     bg.fillStyle(0x020617, 0.92);
-    bg.fillRoundedRect(-320, -100, 640, 200, 16);
+    bg.fillRoundedRect(-340, -100, 680, 200, 16);
     bg.lineStyle(2, 0xd97706, 0.9);
-    bg.strokeRoundedRect(-320, -100, 640, 200, 16);
+    bg.strokeRoundedRect(-340, -100, 680, 200, 16);
     card.add(bg);
 
-    const title = this.add.text(0, -35, this.chapterData.title.toUpperCase(), {
+    const titleText = (isHinglish && this.chapterData.title_hinglish)
+      ? this.chapterData.title_hinglish.toUpperCase()
+      : this.chapterData.title.toUpperCase();
+
+    const title = this.add.text(0, -35, titleText, {
       fontFamily: "'Cinzel', serif",
-      fontSize: '26px',
+      fontSize: '24px',
       color: '#f59e0b',
       fontStyle: 'bold',
-      letterSpacing: 3
+      letterSpacing: 2
     }).setOrigin(0.5);
     card.add(title);
 
-    const sub = this.add.text(0, 10, this.chapterData.subtitle, {
+    const subText = (isHinglish && this.chapterData.subtitle_hinglish)
+      ? this.chapterData.subtitle_hinglish
+      : this.chapterData.subtitle;
+
+    const sub = this.add.text(0, 10, subText, {
       fontFamily: "'Plus Jakarta Sans', sans-serif",
       fontSize: '15px',
       color: '#38bdf8',
@@ -98,7 +114,11 @@ export class VisualNovelScene extends Phaser.Scene {
     }).setOrigin(0.5);
     card.add(sub);
 
-    const prompt = this.add.text(0, 55, 'Click or Press Space to Begin', {
+    const promptLabel = isHinglish
+      ? 'Aage badhne ke liye Click karein ya Space dabayein'
+      : 'Click or Press Space to Begin';
+
+    const prompt = this.add.text(0, 55, promptLabel, {
       fontFamily: "'Plus Jakarta Sans', sans-serif",
       fontSize: '12px',
       color: '#94a3b8'
@@ -141,18 +161,22 @@ export class VisualNovelScene extends Phaser.Scene {
     const story = StoryManager.getInstance();
     story.completeChapter(this.chapterId);
 
+    const settings = SaveManager.getInstance().loadSettings();
+    const isHinglish = (settings.language === 'hinglish');
+
     // Chapter completion card
     const compCard = this.add.container(640, 360);
     compCard.setDepth(2500);
 
     const bg = this.add.graphics();
     bg.fillStyle(0x0a0f1d, 0.95);
-    bg.fillRoundedRect(-300, -110, 600, 220, 16);
+    bg.fillRoundedRect(-320, -110, 640, 220, 16);
     bg.lineStyle(2.5, 0x10b981, 1);
-    bg.strokeRoundedRect(-300, -110, 600, 220, 16);
+    bg.strokeRoundedRect(-320, -110, 640, 220, 16);
     compCard.add(bg);
 
-    const icon = this.add.text(0, -55, '★ CHAPTER COMPLETE ★', {
+    const headerLabel = isHinglish ? '★ ADHYAY PURA HUA ★' : '★ CHAPTER COMPLETE ★';
+    const icon = this.add.text(0, -55, headerLabel, {
       fontFamily: "'Cinzel', serif",
       fontSize: '16px',
       color: '#10b981',
@@ -161,7 +185,11 @@ export class VisualNovelScene extends Phaser.Scene {
     }).setOrigin(0.5);
     compCard.add(icon);
 
-    const title = this.add.text(0, -15, this.chapterData.title, {
+    const titleText = (isHinglish && this.chapterData.title_hinglish)
+      ? this.chapterData.title_hinglish
+      : this.chapterData.title;
+
+    const title = this.add.text(0, -15, titleText, {
       fontFamily: "'Cinzel', serif",
       fontSize: '22px',
       color: '#f59e0b',
@@ -172,10 +200,16 @@ export class VisualNovelScene extends Phaser.Scene {
     const btn = this.add.container(0, 50);
     const bBg = this.add.graphics();
     bBg.fillStyle(0x15803d, 1);
-    bBg.fillRoundedRect(-110, -18, 220, 36, 6);
+    bBg.fillRoundedRect(-120, -18, 240, 36, 6);
     btn.add(bBg);
 
-    const nextLabel = this.chapterId >= 5 ? 'ENTER RPG EXPLORATION' : 'NEXT CHAPTER ▶';
+    let nextLabel = '';
+    if (this.chapterId >= 5) {
+      nextLabel = isHinglish ? 'MOHALLA EXPLORE KAREIN' : 'ENTER RPG EXPLORATION';
+    } else {
+      nextLabel = isHinglish ? 'AGLA ADHYAY ▶' : 'NEXT CHAPTER ▶';
+    }
+
     const bTxt = this.add.text(0, 0, nextLabel, {
       fontFamily: "'Cinzel', serif",
       fontSize: '12px',
@@ -184,7 +218,7 @@ export class VisualNovelScene extends Phaser.Scene {
     }).setOrigin(0.5);
     btn.add(bTxt);
 
-    btn.setSize(220, 36);
+    btn.setSize(240, 36);
     btn.setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
       AudioManager.getInstance().playSFX('click');

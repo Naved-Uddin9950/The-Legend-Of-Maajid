@@ -111,4 +111,43 @@ describe('The Legend Of Maajid — Core Game Systems', () => {
       expect(inv.getItem('tuition_notebook').quantity).toBe(2);
     });
   });
+
+  describe('Settings & Localization System', () => {
+    it('persists language and configuration correctly in SaveManager', () => {
+      const saveMgr = SaveManager.getInstance();
+      const current = saveMgr.loadSettings();
+
+      saveMgr.saveSettings({
+        ...current,
+        language: 'hinglish',
+        textSpeed: 'fast',
+        screenShake: false,
+        masterVolume: 65
+      });
+
+      const updated = saveMgr.loadSettings();
+      expect(updated.language).toBe('hinglish');
+      expect(updated.textSpeed).toBe('fast');
+      expect(updated.screenShake).toBe(false);
+      expect(updated.masterVolume).toBe(65);
+    });
+
+    it('ensures all story chapters have complete, authentic Hinglish translations', () => {
+      const story = StoryManager.getInstance();
+      const chapters = story.getAllChapters();
+      expect(chapters.length).toBe(5);
+
+      chapters.forEach(ch => {
+        expect(ch.title_hinglish).toBeDefined();
+        expect(ch.subtitle_hinglish).toBeDefined();
+        expect(ch.description_hinglish).toBeDefined();
+        expect(ch.dialogues.length).toBeGreaterThan(0);
+
+        ch.dialogues.forEach((d, idx) => {
+          expect(d.text_hinglish, `Chapter ${ch.id} dialogue ${idx} missing text_hinglish`).toBeDefined();
+          expect(d.text_hinglish.length).toBeGreaterThan(0);
+        });
+      });
+    });
+  });
 });
